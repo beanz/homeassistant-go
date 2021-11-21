@@ -9,6 +9,7 @@ import (
 type ClientConfig struct {
 	AppName              string
 	Version              string
+	Debug                bool
 	ClientID             string
 	Broker               string
 	KeepAlive            int16
