@@ -17,6 +17,18 @@ type ClientConfig struct {
 	Log                  *log.Logger
 	DiscoveryTopicPrefix string
 	DataTopicPrefix      string
+	Subs                 []Sub
+}
+
+type Msg struct {
+	Topic  string
+	Body   interface{}
+	Retain bool
+}
+
+type Sub struct {
+	Topic string
+	QoS   byte
 }
 
 type PubSubServer interface {

@@ -14,12 +14,6 @@ import (
 	"github.com/eclipse/paho.golang/paho"
 )
 
-type Msg struct {
-	Topic  string
-	Body   interface{}
-	Retain bool
-}
-
 type Client struct {
 	broker *url.URL
 	config *ClientConfig
@@ -94,6 +88,19 @@ func (c *Client) Run(ctx context.Context, in chan *Msg, out chan *Msg) error {
 		OnConnectionUp: func(cm *autopaho.ConnectionManager, connAck *paho.Connack) {
 			c.logger.Println("MQTT connection up")
 			c.cm = cm
+
+			subs := make(map[string]paho.SubscribeOptions, len(c.config.Subs))
+			for _, sub := range c.config.Subs {
+				subs[sub.Topic] = paho.SubscribeOptions{
+					QoS: sub.QoS,
+				}
+			}
+			if _, err := cm.Subscribe(context.Background(), &paho.Subscribe{
+				Subscriptions: subs,
+			}); err != nil {
+				c.logger.Printf("failed to subscribe (%s)", err)
+			}
+
 			err := c.publish(childCtx, bridgeAvailabilityTopic, "online", true)
 			if err != nil {
 				c.logger.Printf(
@@ -107,6 +114,9 @@ func (c *Client) Run(ctx context.Context, in chan *Msg, out chan *Msg) error {
 		Debug: paho.NOOPLogger{},
 		ClientConfig: paho.ClientConfig{
 			ClientID: c.config.ClientID,
+			Router: paho.NewSingleHandlerRouter(func(m *paho.Publish) {
+				out <- &Msg{m.Topic, m.Payload, m.Retain}
+			}),
 			OnClientError: func(err error) {
 				c.logger.Printf("server requested disconnect: %s\n", err)
 			},
